@@ -8,6 +8,7 @@
 using namespace std;
 
 int stop_recv_cmd_thread();
+int stop_recv_data_thread();
 
 int main() {
   // initialize
@@ -23,9 +24,7 @@ int main() {
   // forever loop
   while(true) {
     slave.init_route();
-    // for debug
-    // thread temp = slave.start_record();
-    // temp.join();
+
     thread t_cmd(&Slave::recv_cmd, slave);
     thread t_data(&Slave::recv_data, slave);
 
@@ -39,7 +38,7 @@ int main() {
     } while (retval < 0);
     // stop the recv_data thread by sending a stop request
     do {
-      retval = stop_recv_cmd_thread();
+      retval = stop_recv_data_thread();
     } while (retval < 0);
 
     // wait the recv_cmd terminate
