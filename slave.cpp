@@ -230,7 +230,7 @@ void Slave::init_route() {
     }
 
     // start a timer, when it timeouts, stop the following server
-    int timeout = INIT_ROUTE_BASIC_TIMEOUT + this->rank * INIT_ROUTE_DELTA_TIMEOUT;
+    int timeout = INIT_ROUTE_BASIC_TIMEOUT - this->rank * INIT_ROUTE_DELTA_TIMEOUT;
     number_to_string(timeout, str);
     cout << "Waiting " + (string)str  + " seconds for children's response..." << endl;
     Timer timer(timeout, Slave::stop_init_route);
