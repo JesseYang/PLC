@@ -201,6 +201,12 @@ void Slave::init_route() {
     c = sizeof(struct sockaddr_in);
     client_socket = ::accept(server_socket, (struct sockaddr *)&client, (socklen_t*)&c);
 
+#ifdef TEST_RELAY
+    while (strcmp(client.sin_addr_c_str(), ROOT_IP) == 0) {
+      client_socket = ::accept(server_socket, (struct sockaddr *)&client, (socklen_t*)&c);
+    }
+#endif
+
     cout << "Parent request received" << endl;
     // receive parent request, record the parent and the rank
     this->parent = inet_ntoa(client.sin_addr);
@@ -324,7 +330,10 @@ void Slave::recv_route_report() {
   while ( (client_socket = accept(server_socket, (struct sockaddr *)&client, (socklen_t*)&c)) ) {
     string ip = inet_ntoa(client.sin_addr);
     if (strcmp(ip.c_str(), "127.0.0.1") == 0) {
-      // time out, should stop checking route
+      // time out, should stop checking route for itself and all children
+      for (int i = 0; i < this->children_number; i++) {
+        send_request(this->children[i], RECV_CHECK_ROUTE_PORT, "shutdown");
+      }
       close(server_socket);
       close(client_socket);
       return;
@@ -342,6 +351,7 @@ void Slave::recv_route_report() {
     }
 
     if (find_string_in_ary(this->children, ip, this->children_number)) {
+      this->route_update_time.erase(ip);
       this->route_update_time.insert(make_pair<string, time_t>((string)ip, get_sys_time()));
       // update children route info
       char child_route_info[1000];

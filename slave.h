@@ -7,6 +7,8 @@
 #include <list>
 using namespace std;
 
+#define TEST_RELAY false
+
 #define MAX_NUM 8
 #define RECV_INIT_ROUTE_DOWN_PORT 8888
 #define RECV_INIT_ROUTE_UP_PORT 8889
@@ -22,8 +24,9 @@ using namespace std;
 
 #define LOCAL_IP "192.168.1.2"
 #define NODE_NUM 0
+#define ROOT_IP "192.168.1.1"
 
-const string node_ip[] = {"192.168.0.102", "192.168.0.103", "192.168.0.104"};
+const string node_ip[] = {"192.168.1.2", "192.168.1.3", "192.168.1.4"};
 
 
 class Slave {
