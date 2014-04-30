@@ -202,7 +202,7 @@ void Slave::init_route() {
     client_socket = ::accept(server_socket, (struct sockaddr *)&client, (socklen_t*)&c);
 
 #ifdef TEST_RELAY
-    while (strcmp(client.sin_addr_c_str(), ROOT_IP) == 0) {
+    while (strcmp(inet_ntoa(client.sin_addr), ROOT_IP) == 0) {
       client_socket = ::accept(server_socket, (struct sockaddr *)&client, (socklen_t*)&c);
     }
 #endif
