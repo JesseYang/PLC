@@ -16,5 +16,5 @@ tool.o: tool.cpp tool.h
 timer.o: timer.cpp timer.h
 	../../mips-openwrt-linux-g++ -std=c++0x -c timer.cpp
 
-clear:
+clean:
 	rm slave_openwrt main.o slave.o tool.o timer.o
