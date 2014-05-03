@@ -123,7 +123,7 @@ void Slave::record() {
   addr_to.sin_family = AF_INET;
   addr_to.sin_port = htons(RECV_DATA_PORT);
   addr_to.sin_addr.s_addr = inet_addr(this->parent.c_str());
- 
+
   struct sockaddr_in addr_from;
   addr_from.sin_family = AF_INET;
   addr_from.sin_port = htons(0);//获得任意空闲端口
@@ -224,8 +224,8 @@ void Slave::init_route() {
     // send requests to all the other nodes
     int index = 0;
     for (list<string>::const_iterator ci = this->node_ip_list.begin(); ci != this->node_ip_list.end(); ++ci) {
-      number_to_string(this->rank + 1, str);
-      threads[index] = thread(send_request, *ci, RECV_INIT_ROUTE_DOWN_PORT, str);
+      number_to_string(this->rank + 1, rank_str);
+      threads[index] = thread(send_request, *ci, RECV_INIT_ROUTE_DOWN_PORT, rank_str);
       index++;
     }
 
@@ -263,12 +263,13 @@ void Slave::init_route() {
       this->route_update_time.insert(make_pair<string, time_t>((string)ip, get_sys_time()));
       this->children_route_info.erase(ip);
       char route_info[100];
-      recv(client_socket, route_info, 100, 0);
+      int byte_number = recv(client_socket, route_info, 100, 0);
+      route_info[byte_number] = '\0';
       this->children_route_info.insert(make_pair<string, string>((string)ip, (string)route_info));
     }
 
     // report to parent
-    cout << "Sending route report to parent" << endl;
+    cout << "Sending route report to parent" << " " << generate_children_route_info() << endl;
     if (send_request(this->parent, RECV_INIT_ROUTE_UP_PORT, generate_children_route_info()) != 0) {
       // clear all parent and children information, back to the stage of waiting for parent request
       this->clear();
@@ -299,9 +300,11 @@ void Slave::check_route() {
   // start a client to send report requests to parent regularly
   int fail_time = 0;
   while (fail_time < CHECK_ROUTE_THRESHOLD) {
-    if (send_request(parent, RECV_CHECK_ROUTE_PORT, this->generate_children_route_info()) != 0) {
+    if (send_request(this->parent, RECV_CHECK_ROUTE_PORT, this->generate_children_route_info()) != 0) {
+      cout << "Fail: send check route request to " + this->parent << endl;
       fail_time++;
     } else {
+      cout << "Success: send check route request to " + this->parent << endl;
       fail_time = 0;
     }
     sleep(CHECK_ROUTE_INTERVAL);
@@ -329,6 +332,7 @@ void Slave::recv_route_report() {
   c = sizeof(struct sockaddr_in);
   while ( (client_socket = accept(server_socket, (struct sockaddr *)&client, (socklen_t*)&c)) ) {
     string ip = inet_ntoa(client.sin_addr);
+    cout << "Receive check route request from " + ip << endl;
     if (strcmp(ip.c_str(), "127.0.0.1") == 0) {
       // time out, should stop checking route for itself and all children
       for (int i = 0; i < this->children_number; i++) {
@@ -338,7 +342,7 @@ void Slave::recv_route_report() {
       close(client_socket);
       return;
     }
-    if (strcmp(ip.c_str(), this->parent.c_str())) {
+    if (strcmp(ip.c_str(), this->parent.c_str()) == 0) {
       // parent sends command to shutdown
       // first send shutdown command to all the children
       for (int i = 0; i < this->children_number; i++) {
@@ -373,7 +377,7 @@ void Slave::recv_data() {
   struct sockaddr_in server;
   server.sin_family=AF_INET;
   server.sin_port=htons(RECV_DATA_PORT);
-  server.sin_addr.s_addr=inet_addr("127.0.0.1");
+  server.sin_addr.s_addr=htonl(INADDR_ANY);
 
   int yes = 1;
   setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
@@ -409,7 +413,6 @@ void Slave::recv_data() {
   setsockopt(client_socket, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
   r = ::bind(client_socket, (struct sockaddr*)&client, sizeof(client));
 
-
   while(1) {
     r = recvfrom(server_socket, buf, sizeof(buf), 0, (struct sockaddr*)&children_client, &len);
     string ip = inet_ntoa(children_client.sin_addr);
@@ -427,7 +430,7 @@ void Slave::recv_data() {
 
 void Slave::recv_cmd() {
   struct sockaddr_in server, client;
-  int server_socket, client_socket, c;
+  int server_socket, client_socket, c, char_number;
   thread record_thread;
   server_socket = socket(AF_INET, SOCK_STREAM, 0);
   server.sin_family = AF_INET;
@@ -454,19 +457,28 @@ void Slave::recv_cmd() {
       return;
     }
 
-    char *cmd_content;
-    recv(client_socket, cmd_content, 2000, 0);
+    char cmd_content[100];
+    char_number = recv(client_socket, cmd_content, 100, 0);
+    char copy_cmd_content[char_number + 1];
+    cout << char_number << endl;
+    memcpy(copy_cmd_content, cmd_content, char_number);
+    copy_cmd_content[char_number] = '\0';
     cout << "Receiving command: " << cmd_content << endl;
 
     char * pch;
     pch = strtok(cmd_content, ":\r\n");
     cout << "Get Destination IP: " << pch << endl;
+    bool for_children = false;
     for (int i = 0; i < this->children_number; i++) {
       if (strcmp(this->children[i].c_str(), pch) == 0) {
         // forward the command to this child, and then return
-        send_request(this->children[i], RECV_CMD_PORT, cmd_content);
-        continue;
+        send_request(this->children[i], RECV_CMD_PORT, copy_cmd_content);
+        for_children = true;
       }
+    }
+
+    if (for_children) {
+      continue;
     }
 
     if (strcmp(this->ip_addr.c_str(), pch) != 0) {
@@ -474,7 +486,7 @@ void Slave::recv_cmd() {
       for (int i = 0; i < this->children_number; i++) {
         // send_request(this->children[i], RECV_CMD_PORT, cmd_content);
         string temp = this->children[i];
-        send_request(temp, RECV_CMD_PORT, cmd_content);
+        send_request(temp, RECV_CMD_PORT, copy_cmd_content);
       }
       continue;
     }

@@ -7,7 +7,7 @@
 #include <list>
 using namespace std;
 
-#define TEST_RELAY false
+// #define TEST_RELAY
 
 #define MAX_NUM 8
 #define RECV_INIT_ROUTE_DOWN_PORT 8888
@@ -19,14 +19,14 @@ using namespace std;
 #define CHECK_ROUTE_INTERVAL 10
 #define CHECK_ROUTE_TIMEOUT CHECK_ROUTE_THRESHOLD * CHECK_ROUTE_INTERVAL
 
-#define INIT_ROUTE_BASIC_TIMEOUT 16
+#define INIT_ROUTE_BASIC_TIMEOUT 6
 #define INIT_ROUTE_DELTA_TIMEOUT 2
 
-#define LOCAL_IP "192.168.1.2"
-#define NODE_NUM 0
-#define ROOT_IP "192.168.1.1"
+#define LOCAL_IP "192.168.1.1"
+#define NODE_NUM 2
+#define ROOT_IP "192.168.1.4"
 
-const string node_ip[] = {"192.168.1.2", "192.168.1.3", "192.168.1.4"};
+const string node_ip[] = {"192.168.1.1", "192.168.1.2"};
 
 
 class Slave {

@@ -36,14 +36,18 @@ int main() {
     do {
       retval = stop_recv_cmd_thread();
     } while (retval < 0);
+    cout << "Terminate recevie command thread." << endl;
     // stop the recv_data thread by sending a stop request
     do {
       retval = stop_recv_data_thread();
     } while (retval < 0);
+    cout << "Terminate recevie data thread." << endl;
 
     // wait the recv_cmd terminate
     t_cmd.join();
+    cout << "AAAAA" << endl;
     t_data.join();
+    cout << "BBBBB" << endl;
   }
 }
 
@@ -53,6 +57,6 @@ int stop_recv_cmd_thread() {
 }
 
 int stop_recv_data_thread() {
-  int retval = send_request("127.0.0.1", RECV_DATA_PORT, "");
+  int retval = send_udp_request("127.0.0.1", RECV_DATA_PORT, "");
   return retval;
 }

@@ -7,6 +7,19 @@
 
 using namespace std;
 
+int send_udp_request(string ip_addr, int port, string content) {
+  int fd = socket(AF_INET,SOCK_DGRAM,0);
+  if (fd == -1) {
+    return -1;
+  }
+  struct sockaddr_in addr_to;//目标服务器地址
+  addr_to.sin_family = AF_INET;
+  addr_to.sin_port = htons(port);
+  addr_to.sin_addr.s_addr = inet_addr(ip_addr.c_str());
+  int retval = sendto(fd, content.c_str(), strlen(content.c_str()), 0, (struct sockaddr*)&addr_to, sizeof(addr_to));
+  return retval;
+}
+
 int send_request(string ip_addr, int port, string content) {
   int socket_desc;
   struct sockaddr_in server;
