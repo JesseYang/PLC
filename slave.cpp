@@ -299,7 +299,7 @@ void Slave::check_route() {
 
   // start a client to send report requests to parent regularly
   int fail_time = 0;
-  while (fail_time < CHECK_ROUTE_THRESHOLD) {
+  while (fail_time < CHECK_ROUTE_THRESHOLD && is_connected) {
     if (send_request(this->parent, RECV_CHECK_ROUTE_PORT, this->generate_children_route_info()) != 0) {
       cout << "Fail: send check route request to " + this->parent << endl;
       fail_time++;
@@ -335,6 +335,7 @@ void Slave::recv_route_report() {
     cout << "Receive check route request from " + ip << endl;
     if (strcmp(ip.c_str(), "127.0.0.1") == 0) {
       // time out, should stop checking route for itself and all children
+      is_connected = false;
       for (int i = 0; i < this->children_number; i++) {
         send_request(this->children[i], RECV_CHECK_ROUTE_PORT, "shutdown");
       }
@@ -344,6 +345,7 @@ void Slave::recv_route_report() {
     }
     if (strcmp(ip.c_str(), this->parent.c_str()) == 0) {
       // parent sends command to shutdown
+      is_connected = false;
       // first send shutdown command to all the children
       for (int i = 0; i < this->children_number; i++) {
         send_request(this->children[i], RECV_CHECK_ROUTE_PORT, "shutdown");
