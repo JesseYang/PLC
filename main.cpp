@@ -45,9 +45,7 @@ int main() {
 
     // wait the recv_cmd terminate
     t_cmd.join();
-    cout << "AAAAA" << endl;
     t_data.join();
-    cout << "BBBBB" << endl;
   }
 }
 

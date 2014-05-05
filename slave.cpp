@@ -81,9 +81,11 @@ void Slave::record() {
   snd_pcm_hw_params_set_channels(handle, params, channel_num);
 
   /* 44100 bits/second sampling rate (CD quality) */
-  val = 44100;
-  snd_pcm_hw_params_set_rate_near(handle, params,
+  do {
+    val = 48000;
+    snd_pcm_hw_params_set_rate_near(handle, params,
                   &val, &dir);
+  } while (val != 48000);
 
   /* Set period size to 48 frames. */
   frames = 48;
@@ -150,14 +152,16 @@ void Slave::record() {
     rc = snd_pcm_readi(handle, &data_with_ip[strlen(this->ip_addr.c_str()) + 1], frames);
     if (rc == -EPIPE) {
       /* EPIPE means overrun */
-      fprintf(stderr, "overrun occurred\n");
+      // fprintf(stderr, "overrun occurred\n");
+      cout << "overrun occurred" << endl;
       snd_pcm_prepare(handle);
     } else if (rc < 0) {
       fprintf(stderr,
           "error from read: %s\n",
           snd_strerror(rc));
     } else if (rc != (int)frames) {
-      fprintf(stderr, "short read, read %d frames\n", rc);
+      // fprintf(stderr, "short read, read %d frames\n", rc);
+      cout << "short read, read frames" << endl;
     }
 
     len = sendto(fd, data_with_ip, strlen(this->ip_addr.c_str()) + 1 + size, 0, (struct sockaddr*)&addr_to, sizeof(addr_to)); 
@@ -279,6 +283,7 @@ void Slave::init_route() {
     }
   }
   cout << "Init route finished" << endl;
+  is_connected = true;
 }
 
 void Slave::clear() {
@@ -300,11 +305,12 @@ void Slave::check_route() {
   // start a client to send report requests to parent regularly
   int fail_time = 0;
   while (fail_time < CHECK_ROUTE_THRESHOLD && is_connected) {
+    // cout << "Route info: " + this->generate_children_route_info() << endl;
     if (send_request(this->parent, RECV_CHECK_ROUTE_PORT, this->generate_children_route_info()) != 0) {
-      cout << "Fail: send check route request to " + this->parent << endl;
+      // cout << "Fail: send check route request to " + this->parent << endl;
       fail_time++;
     } else {
-      cout << "Success: send check route request to " + this->parent << endl;
+      // cout << "Success: send check route request to " + this->parent << endl;
       fail_time = 0;
     }
     sleep(CHECK_ROUTE_INTERVAL);
@@ -330,9 +336,9 @@ void Slave::recv_route_report() {
   ::bind(server_socket, (struct sockaddr *)&server, sizeof(server));
   listen(server_socket, 3);
   c = sizeof(struct sockaddr_in);
+  char child_route_info[1000];
   while ( (client_socket = accept(server_socket, (struct sockaddr *)&client, (socklen_t*)&c)) ) {
     string ip = inet_ntoa(client.sin_addr);
-    cout << "Receive check route request from " + ip << endl;
     if (strcmp(ip.c_str(), "127.0.0.1") == 0) {
       // time out, should stop checking route for itself and all children
       is_connected = false;
@@ -356,14 +362,15 @@ void Slave::recv_route_report() {
       return;
     }
 
+    // cout << "Receive check route request from " + ip << endl;
     if (find_string_in_ary(this->children, ip, this->children_number)) {
       this->route_update_time.erase(ip);
       this->route_update_time.insert(make_pair<string, time_t>((string)ip, get_sys_time()));
       // update children route info
-      char child_route_info[1000];
-      read(client_socket, child_route_info, 1000);
+      int temp = read(client_socket, child_route_info, 1000);
       this->children_route_info.erase(ip);
-      this->children_route_info.insert(make_pair<string, string>((string)ip, (string)child_route_info));
+      this->children_route_info.insert(make_pair<string, string>((string)ip, ((string)child_route_info).substr(0, temp)));
+      // cout << "Update route info " + this->children_route_info[ip] << endl;
     }
   }
 }
@@ -469,7 +476,7 @@ void Slave::recv_cmd() {
 
     char * pch;
     pch = strtok(cmd_content, ":\r\n");
-    cout << "Get Destination IP: " << pch << endl;
+    // cout << "Get Destination IP: " << pch << endl;
     bool for_children = false;
     for (int i = 0; i < this->children_number; i++) {
       if (strcmp(this->children[i].c_str(), pch) == 0) {
@@ -495,7 +502,7 @@ void Slave::recv_cmd() {
 
     // the command is for myself, execute it
     pch = strtok(NULL, ":\r\n");
-    cout << "Get command content: " << pch << endl;
+    // cout << "Get command content: " << pch << endl;
     if (strcmp(pch, "start") == 0) {
       record_thread = start_record();
     }
