@@ -4,6 +4,7 @@
 #include <cstring>
 #include "slave.h"
 #include "tool.h"
+#include "log.h"
 
 using namespace std;
 
@@ -11,6 +12,7 @@ int stop_recv_cmd_thread();
 int stop_recv_data_thread();
 
 int main() {
+  log_init(LL_DEBUG, "log", "./");
   // initialize
   int retval, i;
   list<string> other_nodes;
@@ -30,7 +32,7 @@ int main() {
 
     // this method blocks until the connect to the master lost
     slave.check_route();
-    cout << "Check route finished" << endl;
+    log_trace("%s", "check route finished");
 
     // stop the recv_cmd thread by sending a stop request
     do {

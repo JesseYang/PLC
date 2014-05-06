@@ -196,12 +196,15 @@ void Slave::init_route() {
     setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
     int retval = ::bind(server_socket, (struct sockaddr *)&server, sizeof(server));
     if (retval != 0) {
-      cout << "bind failed" << endl;
+      log_error("%s", "bind failed");
     }
     listen(server_socket, 3);
+    log_trace("%s %d", "waiting requests from parent at", RECV_INIT_ROUTE_DOWN_PORT);
+    /*
     char str[30];
     number_to_string(RECV_INIT_ROUTE_DOWN_PORT, str);
     cout << "Waiting requests from parent at: " + (string)str << endl;
+    */
     c = sizeof(struct sockaddr_in);
     client_socket = ::accept(server_socket, (struct sockaddr *)&client, (socklen_t*)&c);
 
@@ -211,15 +214,15 @@ void Slave::init_route() {
     }
 #endif
 
-    cout << "Parent request received" << endl;
     // receive parent request, record the parent and the rank
     this->parent = inet_ntoa(client.sin_addr);
     char rank_str[10];
     int read_size = recv(client_socket, rank_str, 10, 0);
 
     this->rank = atoi(rank_str);
-    cout << "  parent ip: " + this->parent << endl;
-    cout << "  rank: " + (string)rank_str << endl;
+    // cout << "  parent ip: " + this->parent << endl;
+    // cout << "  rank: " + (string)rank_str << endl;
+    log_trace("%s. [ip:%s] [rankd:%d]", "parent request received", this->parent, this->rank);
 
     // close the sockets
     close(client_socket);
