@@ -10,6 +10,7 @@
 #include "slave.h"
 #include "timer.h"
 #include "tool.h"
+#include "log.h"
 
 using namespace std;
 
@@ -222,7 +223,7 @@ void Slave::init_route() {
     this->rank = atoi(rank_str);
     // cout << "  parent ip: " + this->parent << endl;
     // cout << "  rank: " + (string)rank_str << endl;
-    log_trace("%s. [ip:%s] [rankd:%d]", "parent request received", this->parent, this->rank);
+    log_trace("%s. [ip:%s] [rankd:%d]", "parent request received", this->parent.c_str(), this->rank);
 
     // close the sockets
     close(client_socket);
@@ -238,8 +239,9 @@ void Slave::init_route() {
 
     // start a timer, when it timeouts, stop the following server
     int timeout = INIT_ROUTE_BASIC_TIMEOUT - this->rank * INIT_ROUTE_DELTA_TIMEOUT;
-    number_to_string(timeout, str);
-    cout << "Waiting " + (string)str  + " seconds for children's response..." << endl;
+    // number_to_string(timeout, str);
+    // cout << "Waiting " + (string)str  + " seconds for children's response..." << endl;
+    log_trace("waiting %d seconds for children's response...", timeout);
     Timer timer(timeout, Slave::stop_init_route);
     thread timer_t = timer.start();
 
@@ -276,7 +278,8 @@ void Slave::init_route() {
     }
 
     // report to parent
-    cout << "Sending route report to parent" << " " << generate_children_route_info() << endl;
+    log_trace("sending route report to parent %s", generate_children_route_info().c_str());
+    // cout << "Sending route report to parent" << " " << generate_children_route_info() << endl;
     if (send_request(this->parent, RECV_INIT_ROUTE_UP_PORT, generate_children_route_info()) != 0) {
       // clear all parent and children information, back to the stage of waiting for parent request
       this->clear();
@@ -285,7 +288,8 @@ void Slave::init_route() {
       break;
     }
   }
-  cout << "Init route finished" << endl;
+  log_trace("init route finished");
+  // cout << "Init route finished" << endl;
   is_connected = true;
 }
 

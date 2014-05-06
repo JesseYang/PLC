@@ -7,7 +7,7 @@
 #include <list>
 using namespace std;
 
-// #define TEST_RELAY
+#define TEST_RELAY
 
 #define MAX_NUM 8
 #define RECV_INIT_ROUTE_DOWN_PORT 8888
@@ -22,7 +22,7 @@ using namespace std;
 #define INIT_ROUTE_BASIC_TIMEOUT 6
 #define INIT_ROUTE_DELTA_TIMEOUT 2
 
-#define LOCAL_IP "192.168.1.1"
+#define LOCAL_IP "192.168.1.2"
 #define NODE_NUM 2
 #define ROOT_IP "192.168.1.4"
 
