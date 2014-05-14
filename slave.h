@@ -7,7 +7,7 @@
 #include <list>
 using namespace std;
 
-#define TEST_RELAY
+// #define TEST_RELAY
 
 #define MAX_NUM 8
 #define RECV_INIT_ROUTE_DOWN_PORT 8888

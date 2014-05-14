@@ -1,6 +1,7 @@
 #include <iostream>
 #include <thread>
 #include "timer.h"
+#include "log.h"
 using namespace std;
 
 Timer::Timer(int total_time, pf callback) {
@@ -43,7 +44,7 @@ void Timer::resume() {
 
 void Timer::run() {
   while (remain_time > 0) {
-    cout << remain_time << endl;
+    log_trace("%d", remain_time);
     sleep(1);
     if (!in_use) {
       return;

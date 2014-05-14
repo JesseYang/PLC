@@ -38,7 +38,7 @@ void Slave::stop_record() {
 }
 
 void Slave::record() {
-  cout << "Start record thread" << endl;
+  log_trace("start record thread");
   // the audio initialization part
   long loops;
   int rc;
@@ -50,18 +50,14 @@ void Slave::record() {
   snd_pcm_uframes_t frames;
   int channel_num = 1;
 
-  cout << "Begin alsa configuration" << endl;
   /* Open PCM device for recording (capture). */
   rc = snd_pcm_open(&handle, "hw:0,0",
           SND_PCM_STREAM_CAPTURE, 0);
   if (rc < 0) {
-    fprintf(stderr,
-        "unable to open pcm device: %s\n",
-        snd_strerror(rc));
+    log_error("unable to open pcm device: %s", snd_strerror(rc));
     exit(1);
   }
 
-  cout << "Device open" << endl;
   /* Allocate a hardware parameters object. */
   snd_pcm_hw_params_alloca(&params);
 
@@ -96,13 +92,10 @@ void Slave::record() {
   /* Write the parameters to the driver */
   rc = snd_pcm_hw_params(handle, params);
   if (rc < 0) {
-    fprintf(stderr,
-        "unable to set hw parameters: %s\n",
-        snd_strerror(rc));
+    log_error("unable to set hw parameters: %s", snd_strerror(rc));
     exit(1);
   }
 
-  cout << "Parameter set" << endl;
   /* Use a buffer large enough to hold one period */
   snd_pcm_hw_params_get_period_size(params,
                   &frames, &dir);
@@ -112,15 +105,13 @@ void Slave::record() {
   snd_pcm_hw_params_get_period_time(params,
                   &val, &dir);
 
-  cout << "End alsa configuration" << endl;
 
   // the network part
   int fd = socket(AF_INET,SOCK_DGRAM,0);
   if(fd==-1) {
-    perror("socket create error!\n");
+    log_error("socket create error!");
     exit(-1);
   }
-  printf("socket fd=%d\n",fd);
 
   struct sockaddr_in addr_to;//目标服务器地址
   addr_to.sin_family = AF_INET;
@@ -136,7 +127,7 @@ void Slave::record() {
   int r = ::bind(fd, (struct sockaddr*)&addr_from, sizeof(addr_from));
 
   if (r == -1) {
-    printf("Bind error!\n");
+    log_error("Bind error!");
     close(fd);
     exit(-1);
   }
@@ -153,16 +144,12 @@ void Slave::record() {
     rc = snd_pcm_readi(handle, &data_with_ip[strlen(this->ip_addr.c_str()) + 1], frames);
     if (rc == -EPIPE) {
       /* EPIPE means overrun */
-      // fprintf(stderr, "overrun occurred\n");
-      cout << "overrun occurred" << endl;
+      log_warn("overrun occurred");
       snd_pcm_prepare(handle);
     } else if (rc < 0) {
-      fprintf(stderr,
-          "error from read: %s\n",
-          snd_strerror(rc));
+      log_error("error from read: %s", snd_strerror(rc));
     } else if (rc != (int)frames) {
-      // fprintf(stderr, "short read, read %d frames\n", rc);
-      cout << "short read, read frames" << endl;
+      log_warn("short read, read %d frames", rc);
     }
 
     len = sendto(fd, data_with_ip, strlen(this->ip_addr.c_str()) + 1 + size, 0, (struct sockaddr*)&addr_to, sizeof(addr_to)); 
@@ -201,11 +188,6 @@ void Slave::init_route() {
     }
     listen(server_socket, 3);
     log_trace("%s %d", "waiting requests from parent at", RECV_INIT_ROUTE_DOWN_PORT);
-    /*
-    char str[30];
-    number_to_string(RECV_INIT_ROUTE_DOWN_PORT, str);
-    cout << "Waiting requests from parent at: " + (string)str << endl;
-    */
     c = sizeof(struct sockaddr_in);
     client_socket = ::accept(server_socket, (struct sockaddr *)&client, (socklen_t*)&c);
 
@@ -221,8 +203,6 @@ void Slave::init_route() {
     int read_size = recv(client_socket, rank_str, 10, 0);
 
     this->rank = atoi(rank_str);
-    // cout << "  parent ip: " + this->parent << endl;
-    // cout << "  rank: " + (string)rank_str << endl;
     log_trace("%s. [ip:%s] [rankd:%d]", "parent request received", this->parent.c_str(), this->rank);
 
     // close the sockets
@@ -240,7 +220,6 @@ void Slave::init_route() {
     // start a timer, when it timeouts, stop the following server
     int timeout = INIT_ROUTE_BASIC_TIMEOUT - this->rank * INIT_ROUTE_DELTA_TIMEOUT;
     // number_to_string(timeout, str);
-    // cout << "Waiting " + (string)str  + " seconds for children's response..." << endl;
     log_trace("waiting %d seconds for children's response...", timeout);
     Timer timer(timeout, Slave::stop_init_route);
     thread timer_t = timer.start();
@@ -279,7 +258,6 @@ void Slave::init_route() {
 
     // report to parent
     log_trace("sending route report to parent %s", generate_children_route_info().c_str());
-    // cout << "Sending route report to parent" << " " << generate_children_route_info() << endl;
     if (send_request(this->parent, RECV_INIT_ROUTE_UP_PORT, generate_children_route_info()) != 0) {
       // clear all parent and children information, back to the stage of waiting for parent request
       this->clear();
@@ -289,7 +267,6 @@ void Slave::init_route() {
     }
   }
   log_trace("init route finished");
-  // cout << "Init route finished" << endl;
   is_connected = true;
 }
 
@@ -312,12 +289,11 @@ void Slave::check_route() {
   // start a client to send report requests to parent regularly
   int fail_time = 0;
   while (fail_time < CHECK_ROUTE_THRESHOLD && is_connected) {
-    // cout << "Route info: " + this->generate_children_route_info() << endl;
     if (send_request(this->parent, RECV_CHECK_ROUTE_PORT, this->generate_children_route_info()) != 0) {
-      // cout << "Fail: send check route request to " + this->parent << endl;
+      log_trace("fail to send check route request to %s", this->parent.c_str());
       fail_time++;
     } else {
-      // cout << "Success: send check route request to " + this->parent << endl;
+      log_trace("succeed to send check route request to %s", this->parent.c_str());
       fail_time = 0;
     }
     sleep(CHECK_ROUTE_INTERVAL);
@@ -369,7 +345,6 @@ void Slave::recv_route_report() {
       return;
     }
 
-    // cout << "Receive check route request from " + ip << endl;
     if (find_string_in_ary(this->children, ip, this->children_number)) {
       this->route_update_time.erase(ip);
       this->route_update_time.insert(make_pair<string, time_t>((string)ip, get_sys_time()));
@@ -377,7 +352,7 @@ void Slave::recv_route_report() {
       int temp = read(client_socket, child_route_info, 1000);
       this->children_route_info.erase(ip);
       this->children_route_info.insert(make_pair<string, string>((string)ip, ((string)child_route_info).substr(0, temp)));
-      // cout << "Update route info " + this->children_route_info[ip] << endl;
+      log_trace("update route info %s", this->children_route_info[ip].c_str());
     }
   }
 }
@@ -386,7 +361,7 @@ void Slave::recv_data() {
   // prepare the udp server
   int server_socket = socket(AF_INET, SOCK_DGRAM, 0);
   if(server_socket == -1) {
-    perror("socket create error!\n");
+    log_error("socket create error");
     exit(-1);
   }
 
@@ -399,7 +374,7 @@ void Slave::recv_data() {
   setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
   int r = ::bind(server_socket, (struct sockaddr*)&server, sizeof(server));
   if(r == -1) {
-    printf("Bind error!\n");
+    log_error("bind error");
     close(server_socket);
     exit(-1);
   }
@@ -412,7 +387,7 @@ void Slave::recv_data() {
   // prepare the udp client
   int client_socket = socket(AF_INET,SOCK_DGRAM,0);
   if(client_socket==-1) {
-    perror("socket create error!\n");
+    log_error("socket create error");
     exit(-1);
   }
 
@@ -456,7 +431,7 @@ void Slave::recv_cmd() {
   setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
   ::bind(server_socket, (struct sockaddr *)&server, sizeof(server));
   listen(server_socket, 3);
-  cout << "Waiting for commands..." << endl;
+  log_trace("waiting for commands ... ");
   c = sizeof(struct sockaddr_in);
   while ( (client_socket = accept(server_socket, (struct sockaddr *)&client, (socklen_t*)&c)) ) {
     string ip = inet_ntoa(client.sin_addr);
@@ -473,17 +448,16 @@ void Slave::recv_cmd() {
       return;
     }
 
-    char cmd_content[100];
-    char_number = recv(client_socket, cmd_content, 100, 0);
+    char temp_cmd_content[100];
+    char_number = recv(client_socket, temp_cmd_content, 100, 0);
+    string cmd_content = ((string)temp_cmd_content).substr(0, char_number);
+    log_trace("receiving command: %s", cmd_content.c_str());
     char copy_cmd_content[char_number + 1];
-    cout << char_number << endl;
-    memcpy(copy_cmd_content, cmd_content, char_number);
+    memcpy(copy_cmd_content, (void *)temp_cmd_content, char_number);
     copy_cmd_content[char_number] = '\0';
-    cout << "Receiving command: " << cmd_content << endl;
 
     char * pch;
-    pch = strtok(cmd_content, ":\r\n");
-    // cout << "Get Destination IP: " << pch << endl;
+    pch = strtok((char *)cmd_content.c_str(), ":\r\n");
     bool for_children = false;
     for (int i = 0; i < this->children_number; i++) {
       if (strcmp(this->children[i].c_str(), pch) == 0) {
@@ -500,16 +474,15 @@ void Slave::recv_cmd() {
     if (strcmp(this->ip_addr.c_str(), pch) != 0) {
       // forward the command to all the thildren
       for (int i = 0; i < this->children_number; i++) {
-        // send_request(this->children[i], RECV_CMD_PORT, cmd_content);
-        string temp = this->children[i];
-        send_request(temp, RECV_CMD_PORT, copy_cmd_content);
+        send_request(this->children[i], RECV_CMD_PORT, copy_cmd_content);
+        // string temp = this->children[i];
+        // send_request(temp, RECV_CMD_PORT, cmd_content);
       }
       continue;
     }
 
     // the command is for myself, execute it
     pch = strtok(NULL, ":\r\n");
-    // cout << "Get command content: " << pch << endl;
     if (strcmp(pch, "start") == 0) {
       record_thread = start_record();
     }

@@ -12,7 +12,7 @@ int stop_recv_cmd_thread();
 int stop_recv_data_thread();
 
 int main() {
-  log_init(LL_DEBUG, "log", "./");
+  log_init(LL_DEBUG, "log", "/root/");
   // initialize
   int retval, i;
   list<string> other_nodes;
@@ -32,18 +32,18 @@ int main() {
 
     // this method blocks until the connect to the master lost
     slave.check_route();
-    log_trace("%s", "check route finished");
+    log_trace("check route finished");
 
     // stop the recv_cmd thread by sending a stop request
     do {
       retval = stop_recv_cmd_thread();
     } while (retval < 0);
-    cout << "Terminate recevie command thread." << endl;
+    log_trace("terminate receive command thread");
     // stop the recv_data thread by sending a stop request
     do {
       retval = stop_recv_data_thread();
     } while (retval < 0);
-    cout << "Terminate recevie data thread." << endl;
+    log_trace("terminate receive data thread");
 
     // wait the recv_cmd terminate
     t_cmd.join();
