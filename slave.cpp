@@ -101,7 +101,6 @@ void Slave::record() {
                   &frames, &dir);
   size = frames * 2 * channel_num; /* 2 bytes/sample, 2 channels */
 
-  /* We want to loop for 5 seconds */
   snd_pcm_hw_params_get_period_time(params,
                   &val, &dir);
 
@@ -141,9 +140,10 @@ void Slave::record() {
     data_with_ip = new char[strlen(this->ip_addr.c_str()) + 1 + size];
     strcpy(data_with_ip, this->ip_addr.c_str());
     strcat(data_with_ip, ":");
+
     rc = snd_pcm_readi(handle, &data_with_ip[strlen(this->ip_addr.c_str()) + 1], frames);
     if (rc == -EPIPE) {
-      /* EPIPE means overrun */
+      // EPIPE means overrun
       log_warn("overrun occurred");
       snd_pcm_prepare(handle);
     } else if (rc < 0) {
@@ -153,6 +153,7 @@ void Slave::record() {
     }
 
     len = sendto(fd, data_with_ip, strlen(this->ip_addr.c_str()) + 1 + size, 0, (struct sockaddr*)&addr_to, sizeof(addr_to)); 
+    delete(data_with_ip);
   }
 
   char command[] = "stop";

@@ -22,7 +22,7 @@ using namespace std;
 #define INIT_ROUTE_BASIC_TIMEOUT 6
 #define INIT_ROUTE_DELTA_TIMEOUT 2
 
-#define LOCAL_IP "192.168.1.2"
+#define LOCAL_IP "192.168.1.1"
 #define NODE_NUM 2
 #define ROOT_IP "192.168.1.4"
 
